@@ -1,0 +1,135 @@
+local ScreenGui = Instance.new("ScreenGui")
+local MainFrame = Instance.new("Frame")
+local UICornerMain = Instance.new("UICorner")
+local ToggleBtn = Instance.new("TextButton")
+local SpeedInput = Instance.new("TextBox")
+local UIStroke = Instance.new("UIStroke")
+
+ScreenGui.Parent = game:GetService("CoreGui")
+MainFrame.Name = "StableFlyMenu"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+MainFrame.BackgroundTransparency = 0.4
+MainFrame.Position = UDim2.new(0.5, -50, 0.4, 0)
+MainFrame.Size = UDim2.new(0, 100, 0, 40)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+
+UICornerMain.CornerRadius = UDim.new(0, 8)
+UICornerMain.Parent = MainFrame
+
+UIStroke.Parent = MainFrame
+UIStroke.Thickness = 0.8
+UIStroke.Color = Color3.fromRGB(150, 150, 150)
+
+ToggleBtn.Parent = MainFrame
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+ToggleBtn.Position = UDim2.new(0, 4, 0, 4) 
+ToggleBtn.Size = UDim2.new(0, 44, 0, 32)
+ToggleBtn.Font = Enum.Font.GothamBold
+ToggleBtn.Text = "OFF"
+ToggleBtn.TextColor3 = Color3.fromRGB(255, 80, 80)
+ToggleBtn.TextSize = 11
+Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 6)
+
+SpeedInput.Parent = MainFrame
+SpeedInput.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+SpeedInput.Position = UDim2.new(0, 52, 0, 4)
+SpeedInput.Size = UDim2.new(0, 44, 0, 32)
+SpeedInput.Font = Enum.Font.GothamSemibold
+SpeedInput.Text = "50"
+SpeedInput.TextColor3 = Color3.new(1, 1, 1)
+SpeedInput.TextSize = 11
+Instance.new("UICorner", SpeedInput).CornerRadius = UDim.new(0, 6)
+
+local dragging, dragInput, dragStart, startPos
+
+MainFrame.InputBegan:Connect(function(input)
+    if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+        dragging = true
+        dragStart = input.Position
+        startPos = MainFrame.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+MainFrame.InputChanged:Connect(function(input)
+    if (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        dragInput = input
+    end
+end)
+
+game:GetService("UserInputService").InputChanged:Connect(function(input)
+    if dragging and input == dragInput then
+        local delta = input.Position - dragStart
+        MainFrame.Position = UDim2.new(
+            startPos.X.Scale, 
+            startPos.X.Offset + delta.X, 
+            startPos.Y.Scale, 
+            startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+local player = game.Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local flying = false
+local bv
+
+ToggleBtn.MouseButton1Click:Connect(function()
+    flying = not flying
+    local char = player.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    local root = char.HumanoidRootPart
+    local hum = char:FindFirstChildOfClass("Humanoid")
+
+    if flying then
+        ToggleBtn.Text = "ON"
+        ToggleBtn.TextColor3 = Color3.fromRGB(120, 255, 120)
+        
+        bv = Instance.new("BodyVelocity", root)
+        bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+        hum.PlatformStand = true
+        
+        task.spawn(function()
+            while flying do
+                local cam = workspace.CurrentCamera
+                local spd = tonumber(SpeedInput.Text) or 50
+                local moveDir = hum.MoveDirection
+                
+                for _, part in pairs(char:GetDescendants()) do
+                    if part:IsA("BasePart") and part.CanCollide then
+                        part.CanCollide = false
+                    end
+                end
+
+                if moveDir.Magnitude > 0 then
+                    local forwardInput = moveDir:Dot(cam.CFrame.LookVector)
+                    local sideInput = moveDir:Dot(cam.CFrame.RightVector)
+                    bv.Velocity = (cam.CFrame.LookVector * forwardInput + cam.CFrame.RightVector * sideInput).Unit * spd
+                else
+                    bv.Velocity = Vector3.new(0, 0, 0)
+                end
+                
+                root.CFrame = CFrame.new(root.Position, root.Position + cam.CFrame.LookVector)
+                
+                RunService.RenderStepped:Wait()
+            end
+        end)
+    else
+        ToggleBtn.Text = "OFF"
+        ToggleBtn.TextColor3 = Color3.fromRGB(255, 80, 80)
+        if bv then bv:Destroy() end
+        hum.PlatformStand = false
+        for _, part in pairs(char:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = true
+            end
+        end
+    end
+end)
