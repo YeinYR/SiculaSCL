@@ -1,0 +1,130 @@
+local Players = game:GetService("Players")
+local LP = Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+
+local ChamsEnabled = false
+local ChamsColor = Color3.fromRGB(255, 255, 255)
+
+local Gui = Instance.new("ScreenGui")
+Gui.Name = "StableChamsGui"
+Gui.Parent = CoreGui
+Gui.ResetOnSpawn = false
+
+local Main = Instance.new("Frame")
+Main.Name = "MainFrame"
+Main.Parent = Gui
+Main.Size = UDim2.new(0, 100, 0, 40)
+Main.Position = UDim2.new(0.5, -50, 0.2, 0)
+Main.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+Main.BackgroundTransparency = 0.4
+Main.BorderSizePixel = 0
+Main.Active = true
+
+local MainCorner = Instance.new("UICorner", Main)
+MainCorner.CornerRadius = UDim.new(0, 8)
+
+local Stroke = Instance.new("UIStroke", Main)
+Stroke.Thickness = 0.8
+Stroke.Color = Color3.fromRGB(150, 150, 150)
+
+local Btn = Instance.new("TextButton", Main)
+Btn.Name = "ToggleBtn"
+Btn.Size = UDim2.new(0, 92, 0, 32)
+Btn.Position = UDim2.new(0, 4, 0, 4)
+Btn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+Btn.BackgroundTransparency = 0.5
+Btn.Text = "CHAMS: OFF"
+Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+Btn.Font = Enum.Font.GothamBold
+Btn.TextSize = 10
+
+local BtnCorner = Instance.new("UICorner", Btn)
+BtnCorner.CornerRadius = UDim.new(0, 6)
+
+local dragging, dragInput, dragStart, startPos
+
+Main.InputBegan:Connect(function(input)
+    if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+        dragging = true
+        dragStart = input.Position
+        startPos = Main.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+Main.InputChanged:Connect(function(input)
+    if (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and input == dragInput then
+        local delta = input.Position - dragStart
+        Main.Position = UDim2.new(
+            startPos.X.Scale, 
+            startPos.X.Offset + delta.X, 
+            startPos.Y.Scale, 
+            startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+local function ApplyChams(player)
+    if player ~= LP and player.Character then
+        for _, part in pairs(player.Character:GetChildren()) do
+            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                local box = part:FindFirstChild("WhiteChams")
+                if not box then
+                    box = Instance.new("BoxHandleAdornment")
+                    box.Name = "WhiteChams"
+                    box.Parent = part
+                end
+                box.Adornee = part
+                box.AlwaysOnTop = true
+                box.ZIndex = 5
+                box.Size = part.Size
+                box.Transparency = 0.7
+                box.Color3 = ChamsColor
+            end
+        end
+    end
+end
+
+local function ClearChams()
+    for _, p in pairs(Players:GetPlayers()) do
+        if p.Character then
+            for _, v in pairs(p.Character:GetDescendants()) do
+                if v.Name == "WhiteChams" then v:Destroy() end
+            end
+        end
+    end
+end
+
+Btn.MouseButton1Click:Connect(function()
+    ChamsEnabled = not ChamsEnabled
+    if ChamsEnabled then
+        Btn.Text = "CHAMS: ON"
+        Btn.TextColor3 = Color3.fromRGB(120, 255, 120)
+    else
+        Btn.Text = "CHAMS: OFF"
+        Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        ClearChams()
+    end
+end)
+
+task.spawn(function()
+    while task.wait(1) do
+        if ChamsEnabled then
+            for _, v in pairs(Players:GetPlayers()) do
+                pcall(function() ApplyChams(v) end)
+            end
+        end
+    end
+end)
